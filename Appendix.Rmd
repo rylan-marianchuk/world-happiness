@@ -1,28 +1,52 @@
 ---
-title: "Appendix"
-output: pdf_document
+title: "World-Happiness Appendix"
+author: "Rylan Marianchuk"
+date: "STAT 429 project"
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+library(formatR)
+library(knitr)
+library(ggplot2)
+opts_chunk$set(tidy.opts=list(width.cutoff=60),tidy=TRUE)
 ```
 
-## R Markdown
+## Analysis
+# Research question 1
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+Does there exist statistically significant differences in means of Happiness score across continents? This is approached using a One-Way ANOVA:
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+The hypothesis test follows the null and alternative:
+$$H_0:  \mu_{africa} = \mu_{asia} = \mu_{europe} = \mu_{africa} = \mu_{oceania} = \mu_{NAmerica} = \mu_{SAmerica}$$
+$$H_A: \mu_i \neq \mu_j \> \texttt{  for some } i,j$$
 
-```{r cars}
-summary(cars)
+
+```{r }
+world.happiness <- read.csv("final.csv")
+
+# ANOVA
+table(world.happiness$region)
+
+anova = data.frame("Happiness Score" = world.happiness$happiness.score, "Continents" = world.happiness$region)
+
+summary(aov(Happiness.Score ~ Continents, data = anova))
+
+fit <- lm(Happiness.Score ~ Continents, data = anova)
+summary(fit)
+
+summary(lm(Happiness.Score  ~ C(Continents,contr.treatment("Asia")), data=anova ) )
+
+# Results are discussed in report
 ```
 
-## Including Plots
+Model diagnostics 
 
-You can also embed plots, for example:
+```{r}
 
-```{r pressure, echo=FALSE}
-plot(pressure)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
