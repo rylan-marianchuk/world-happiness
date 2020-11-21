@@ -12,13 +12,13 @@ knitr::opts_chunk$set(echo = TRUE)
 library(formatR)
 library(knitr)
 library(ggplot2)
+library("car")
 opts_chunk$set(tidy.opts=list(width.cutoff=60),tidy=TRUE)
 ```
 
-## Analysis
+## Model Fitting
 # Research question 1
-
-Does there exist statistically significant differences in means of Happiness score across continents? This is approached using a One-Way ANOVA:
+This is approached using a 1-Way ANOVA, as described in 1.3.
 
 The hypothesis test follows the null and alternative:
 $$H_0:  \mu_{africa} = \mu_{asia} = \mu_{europe} = \mu_{africa} = \mu_{oceania} = \mu_{NAmerica} = \mu_{SAmerica}$$
@@ -38,15 +38,122 @@ summary(aov(Happiness.Score ~ Continents, data = anova))
 fit <- lm(Happiness.Score ~ Continents, data = anova)
 summary(fit)
 
-summary(lm(Happiness.Score  ~ C(Continents,contr.treatment("Asia")), data=anova ) )
-
-# Results are discussed in report
 ```
 
-Model diagnostics 
+Checking for equality of variances, the ratio of $\frac{\texttt{max}}{\texttt{min}}$ variances of the group happiness distributions, and Bertlett and LeveneTest:
+
+```{r}
+# Distributions of each region
+africa_happiness <- world.happiness$happiness.score[world.happiness$region == "Africa"]
+asia_happiness <- world.happiness$happiness.score[world.happiness$region == "Asia"]
+europe_happiness <- world.happiness$happiness.score[world.happiness$region == "Europe"]
+namerica_happiness <- world.happiness$happiness.score[world.happiness$region == "North America"]
+oceania_happiness <- world.happiness$happiness.score[world.happiness$region == "Oceania"]
+samerica_happiness <- world.happiness$happiness.score[world.happiness$region == "South America"]
+
+var_vec = c(var(africa_happiness), var(asia_happiness), var(europe_happiness), var(namerica_happiness), var(oceania_happiness), var(samerica_happiness))
+
+max(var_vec) / min(var_vec)
+
+bartlett.test(Happiness.Score ~ Continents, data = anova)
+leveneTest(Happiness.Score ~ Continents, data = anova)
+```
+
+See section 2.4 Model Fitting for results discussed in report.
+
+
+# Research question 2
+
+Performing a multiple linear regression of GDP as a response.
+
+```{r}
+mlr.frame <- data.frame("GDP" = world.happiness$GDP, "social" = world.happiness$social, "health" = world.happiness$health,
+                        "freedom" = world.happiness$freedom, "trust" = world.happiness$trust, "generosity" = world.happiness$generosity)
+
+full_fit <- lm(GDP ~ social + health + freedom + trust + generosity, data=mlr.frame)
+summary(full_fit)
+
+#Arriving at the same coefficients using matrix vector operations to confirm its correctness:
+data_mat <- data.matrix(mlr.frame)
+p <- 5
+n <- nrow(data_mat)
+design_mat <- cbind(rep(1,n),data_mat[,c("social", "health", "freedom", "trust", "generosity")])
+
+y.vector <- as.vector(data_mat[,"GDP"])
+
+# Using r matrix operations to solve the beta hat vector
+betahat.vector <- solve(t(design_mat) %*% design_mat) %*% t(design_mat) %*% y.vector
+betahat.vector
+
+# Finding SSE and residual vector
+e.residual <- y.vector - design_mat %*% betahat.vector
+SSE <- t(e.residual) %*% e.residual
+SSE
+
+s.square <- SSE / (n-p-1)
+s <- sqrt(s.square)
+s
+```
+
+
+Performing bidirectional variable selection using both AIC and BIC criterion to arrive at 2 candidate models. 
+
+```{r}
+# Variable selection and model refinement
+  # Using the criterion of AIC
+step(full_fit, data = world.happiness, direction = "both",k=2)
+  # Using the criterion of BIC
+step(full_fit, data = world.happiness, direction = "both",k=log(nrow(world.happiness)))
+```
+
+Reduced candidate models are checked by $C_p$ statistic:
+```{r}
+# 2 candidate models: ------------------
+
+# Model 1 - social + health + trust + generosity
+cand1 <- lm(GDP ~ social + health + trust + generosity, data = world.happiness)
+summary(cand1)
+#Cp Statistic
+
+# Using the matrix operation to get SSE
+p <- 4
+n <- nrow(data_mat)
+design_mat <- cbind(rep(1,n),data_mat[,c("social", "health", "trust", "generosity")])
+
+y.vector <- as.vector(data_mat[,"GDP"])
+beta_hat.cand1 <- solve( t(design_mat) %*% design_mat) %*% t(design_mat) %*% y.vector
+e.cand1 <- y.vector - design_mat %*% beta_hat.cand1
+
+SSE = t(e.cand1) %*% e.cand1
+c(SSE, sum(cand1$residuals^2))
+# 0.2346 is the residual standard error of full_fit
+Cp1 <- SSE / (0.2346)^2 - (n-2*p)
+Cp1
+
+
+# Model 2 - social + health + trust
+cand2 <- lm(GDP ~ social + health + trust, data = world.happiness)
+summary(cand2)
+# Cp statistic
+design_mat <- cbind(rep(1,n),data_mat[,c("social", "health", "trust")])
+
+y.vector <- as.vector(data_mat[,"GDP"])
+beta_hat.cand2 <- solve( t(design_mat) %*% design_mat) %*% t(design_mat) %*% y.vector
+e.cand2 <- y.vector - design_mat %*% beta_hat.cand2
+
+SSE = t(e.cand2) %*% e.cand2
+c(SSE, sum(cand2$residuals^2))
+p <- 3
+Cp2 <- SSE / (0.2346)^2 - (n-2*p)
+Cp2
+```
+
+Choice of model using ANOVA:
 
 ```{r}
 
 ```
+
+
 
 
